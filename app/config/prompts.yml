@@ -1,0 +1,218 @@
+prompts:
+
+  - task: summarize_text
+    models:
+      - openai/gpt-3.5-turbo
+    content: |-
+      Text: {{ user_input }}
+      Please summarize the above text.
+
+  - task: extract_date
+    models:
+      - openai/gpt-4
+    content: |-
+      Given the user input: "{{ user_input }}", extract any dates and transform them into the format mm-dd-yyyy.
+
+      **Identify potential dates:**
+
+      1. Search for patterns matching three parts separated by separators (e.g., "/" or "-"). The first part should be a number between 1 and 12, the second part should be a number between 1 and 31, and the third part should be a four-digit number representing the year.
+
+      2. Additionally, consider two-part patterns where the first part is a textual month name (e.g., "November", "December") followed by a day number with an ordinal indicator (e.g., "1st", "2nd").
+
+      **Extract and format the date:**
+
+      - If a pattern is found in step 1, directly convert it to mm-dd-yyyy format.
+      - If a pattern is found in step 2, convert the month name to its corresponding numerical value (e.g., "November" -> "11") and combine it with the day number to form mm-dd format. Prepend the current year (2024) if no year is mentioned.
+
+      **Handle missing information:**
+
+      - If no pattern is found, return "unknown".
+
+      **Response format:**
+      `{{ extracted_date }}`
+
+
+      - Replace `{{ extracted_date }}` with the extracted date in mm-dd-yyyy format (or "unknown" if not found).
+
+
+      **Examples:**
+
+      - Input: Can I dispute a transaction from Nov 1st 2023? -> 11-01-2023
+      - Input: I need information about the transaction on 2023-12-02 -> 12-02-2023
+      - Input: The date of the transaction is 12/02/2023 -> 12-02-2023
+      - Input: Inquiry about a transaction from yesterday (17/06/2024) -> 17-06-2024
+      - Input: Show me details for the transaction on the 5th of next month -> unknown (as specific month and year are not provided)
+      - Input: I don't recall the date ->unknown
+
+
+
+
+
+  - task: extract_account
+    models:
+      - openai/gpt-3.5-turbo
+      - openai/gpt-4
+    content: |-
+      Given the user input: "{{ user_input }}", extract any account numbers in the format of 12 consecutive digits (e.g., 123456789012).
+      If the input does not contain a valid account number, only respond with "unknown". Only return the extracted account number without any additional text.
+
+       **Note:**
+      - Dont use the same examples as the response extraction task.
+
+      Examples:
+
+      - Input: My account number is 123456789012
+      Output: 123456789012
+      - Input: The account to transfer to is 987654321098
+      Output: 987654321098
+      - Input: Here is the account number: 112233445566
+      Output: 112233445566
+      - Input: Invalid text with no account number
+      Output: unknown
+      - Input: i dont have the account now
+      Output: unknown
+      - Input: The account is 999178081785
+      Output: 999178081785
+
+  - task: extract_origin_account
+    models:
+      - openai/gpt-4
+    content: |-
+      Given the user input: "{{ user_input }}", extract the origin account number.
+      Only return the extracted origin account number without any additional text.
+      When there is no origin account number specified in the given user input return "unknown".
+
+      **Examples:**
+      - "I want to transfer money from account $account" -> $account
+      - "Transfer from my account $account to another account" -> $account
+      - "I want to transfer $100 to account number $account1 from account number $account2" -> $account2
+      - "Send $200 out of account number $account" -> $account
+      - "Move $1000 from account number $account" -> $account
+
+
+
+  - task: extract_destination_account
+    models:
+      - openai/gpt-4
+    content: |-
+      Given the user input: "{{ user_input }}", extract the destination account number.
+      Only return the extracted destination account number without any additional text.
+      When there is no destination account number specified in the given user input return "unknown".
+
+      **Examples:**
+      - "I want to transfer money to account $account" ->  $account
+      - "I want to transfer $100 to account number $account1 from account number $account2" -> $account1
+      - "Transfer $500 to my account $account" -> $account
+      - "Deposit $200 into account number $account" -> $account
+      - "Send $1000 to account number $account" -> $account
+
+
+  - task: extract_amount
+    models:
+      - openai/gpt-4
+    content: |-
+      Given the user input: "{{ user_input }}", extract a single amount in a valid numerical format, including integers and decimals
+      Only return the single extracted numerical value without any additional text or additional values.
+      When there is no amount specified in the given user input return "unknown".
+
+      **Examples:**
+      - I want to transfer $amount -> $amount
+      - I want to transfer $amount dollars -> $amount
+      - I want to transfer $amount -> $amount
+      - Please send $amount USD to my account -> $amount
+      - Transfer $amount dollars to my account -> $amount
+      - Send $amount to my account -> $amount
+
+
+
+  - task: extract_confirm
+    models:
+      - openai/gpt-3.5-turbo
+      - openai/gpt-4
+    content: |-
+      Given the user input: "{{ user_input }}", determine if the response is a confirmation, a negative response, or unknown.
+      If the input is a confirmation  respond with "yes".
+      If the input is a negative response  respond with "no".
+      If the input is uncertain or cannot be determined, respond with "unknown".
+
+      Examples:
+      - Yes -> yes
+      - No -> no
+      - I am not sure -> unknown
+
+  - task: generate_user_intent
+    models:
+      - openai/gpt-3.5-turbo
+      - openai/gpt-4
+    messages:
+      - type: system
+        content: "{{ general_instructions }}"
+      - type: system
+        content: "This is how a conversation between a user and the bot can go:"
+      - type: user
+        content: "{{ sample_conversation | last_turns(8) | to_messages }}"
+      - type: bot
+        content: "Based on our last conversation, your concern was:"
+      - type: user
+        content: "{{ history | colang | last_user_message | last_turns(20) | to_messages }}"
+
+
+
+
+  - task: generate_next_steps
+    models:
+      - openai/gpt-3.5-turbo
+      - openai/gpt-4
+    messages:
+      - type: system
+        content: "Considering our discussion, the next steps could be:"
+      - type: bot
+        content: "{{ history | colang | last_turns(20) | to_messages }}"
+
+
+
+  - task: generate_bot_message
+    models:
+      - openai/gpt-3.5-turbo
+      - openai/gpt-4
+    messages:
+      - type: system
+        content: "{{ general_instructions }}"
+
+      - type: system
+        content: "This is how a conversation between a user and the bot can go:"
+
+      - "{{ sample_conversation | to_messages }}"
+
+      - type: system
+        content: |-
+          {% if relevant_chunks %}
+          # This is some additional context:
+          ```markdown
+          {{ relevant_chunks }}
+          ```
+          {% endif %}"
+
+      - type: system
+        content: "This is how the bot talks:"
+
+      - "{{ examples | to_messages}}"
+
+      - type: system
+        content: "This is the current conversation between the user and the bot:"
+
+      - "{{ sample_conversation | first_turns(2) | to_messages }}"
+      - "{{ history | colang | to_messages }}"
+
+    output_parser: "bot_message"
+
+
+  - task: generate_value
+    models:
+      - openai/gpt-3.5-turbo
+      - openai/gpt-4
+    messages:
+      - type: system
+        content: "Based on your inputs, here are the values we calculated:"
+      - type: assistant
+        content: "{{ history | colang | last_turns(5) | to_calculations }}"
